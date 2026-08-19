@@ -1,11 +1,22 @@
-const CACHE_NAME = "gioco-delle-case-v2-guide-20260819";
+const CACHE_NAME = "gioco-delle-case-v3-suoni-20260819";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./icons/icon-180.png",
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  "./sounds/effect-special.mp3",
+  "./sounds/confirm-short.mp3",
+  "./sounds/transition-magic.mp3",
+  "./sounds/house-open.mp3",
+  "./sounds/leader-event.mp3",
+  "./sounds/potion-bubble.mp3",
+  "./sounds/points-sparkle.mp3",
+  "./sounds/project-whoosh.mp3",
+  "./sounds/project-gleam.mp3",
+  "./sounds/unlock-magic.mp3",
+  "./sounds/README-SUONI.md"
 ];
 
 self.addEventListener("install", event => {

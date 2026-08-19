@@ -6,4 +6,4 @@ Testi, regolamento, carte, grafica e altri contenuti originali del progetto **Gi
 
 Il codice sorgente dell’app è distribuito separatamente con licenza **GNU GPL v3.0**, come indicato nel file `LICENSE`.
 
-Eventuali risorse di terzi restano soggette alle rispettive licenze e condizioni d’uso.
+Eventuali risorse di terzi restano soggette alle rispettive licenze e condizioni d’uso. Gli effetti sonori distribuiti nella cartella `sounds/` sono risorse CC0; dettagli e fonti sono elencati in `sounds/README-SUONI.md`.
