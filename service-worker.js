@@ -1,4 +1,4 @@
-const CACHE_NAME = "gioco-delle-case-v4c-top-icons-lower-20260819";
+const CACHE_NAME = "gioco-delle-case-v4d-logo-safe-area-20260819";
 const APP_SHELL = [
   "./",
   "./index.html",
