@@ -638,7 +638,7 @@ async function award(points,reason){
   if(!prefs.teacher){showToast("Imposta prima il profilo docente.");return false}
   const leadersBefore=leaderSignature();
   const id=crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const celebrate=()=>{const changed=leaderSignature()!==leadersBefore&&leaders().length>0;changed?playSfx("leader"):playSfx("points")};
+  const celebrate=()=>{const changed=leaderSignature()!==leadersBefore&&leaders().length>0;if(changed)playSfx("leader")};
   if(isShared()){
     if(!prefs.pin){showToast("Inserisci il PIN nel profilo docente.");openProfile();return false}
     setSyncStatus("syncing","Invio punti…");
@@ -714,6 +714,35 @@ async function unlockAudio(forceRecreate=false){
   }finally{audioRecovering=false}
 }
 async function clickSound(){if(!prefs.sound)return;const stamp=performance.now();if(stamp-lastDingAt<95)return;lastDingAt=stamp;const ctx=await unlockAudio();if(!ctx||ctx.state!=="running"){playSfxHtmlFallback("confirm",{volume:.22});return}try{const t=ctx.currentTime+.006,mix=ctx.createGain();mix.gain.setValueAtTime(.0001,t);mix.gain.exponentialRampToValueAtTime(.16,t+.008);mix.gain.exponentialRampToValueAtTime(.0001,t+.19);mix.connect(ctx.destination);[[1174.66,"sine",1],[1760,"sine",.34],[2349.32,"triangle",.11]].forEach(([f,type,level])=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*1.018,t+.055);g.gain.setValueAtTime(level,t);g.gain.exponentialRampToValueAtTime(.0001,t+.17);o.connect(g);g.connect(mix);o.start(t);o.stop(t+.2)})}catch{}}
+async function awardSuccessDing(){
+  if(!prefs.sound)return;
+  const ctx=await unlockAudio();
+  if(!ctx||ctx.state!=="running"){
+    playSfxHtmlFallback("confirm",{volume:1});
+    return
+  }
+  try{
+    const t=ctx.currentTime+.01,mix=ctx.createGain();
+    mix.gain.setValueAtTime(.0001,t);
+    mix.gain.exponentialRampToValueAtTime(.18,t+.012);
+    mix.gain.exponentialRampToValueAtTime(.0001,t+.62);
+    mix.connect(ctx.destination);
+
+    [[783.99,0,.88],[1174.66,.075,.72],[1567.98,.15,.52]].forEach(([f,d,level])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain(),start=t+d;
+      o.type="sine";
+      o.frequency.setValueAtTime(f,start);
+      o.frequency.exponentialRampToValueAtTime(f*1.012,start+.28);
+      g.gain.setValueAtTime(.0001,start);
+      g.gain.exponentialRampToValueAtTime(level,start+.012);
+      g.gain.exponentialRampToValueAtTime(.0001,start+.42);
+      o.connect(g);g.connect(mix);o.start(start);o.stop(start+.46)
+    })
+  }catch{
+    playSfxHtmlFallback("confirm",{volume:1})
+  }
+}
+
 async function magicSound(){if(!prefs.sound)return;const ctx=await unlockAudio();if(!ctx||ctx.state!=="running")return;try{const base=ctx.currentTime+.01,mix=ctx.createGain();mix.gain.setValueAtTime(.0001,base);mix.gain.exponentialRampToValueAtTime(.12,base+.02);mix.gain.exponentialRampToValueAtTime(.0001,base+.62);mix.connect(ctx.destination);[659.25,783.99,987.77,1318.51].forEach((f,i)=>{const t=base+i*.075,o=ctx.createOscillator(),g=ctx.createGain();o.type=i%2?"triangle":"sine";o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*1.025,t+.18);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.7,t+.018);g.gain.exponentialRampToValueAtTime(.0001,t+.34);o.connect(g);g.connect(mix);o.start(t);o.stop(t+.38)})}catch{}}
 const sfxRawPromises={},sfxDecoded={};
 function preloadSfxFiles(){
@@ -797,6 +826,9 @@ $("#awardForm").addEventListener("submit",async e=>{
   const pts=selectedPoints??$("#customPoints").value;
   const btn=$("#confirmAward"),oldText=btn.textContent;
 
+  // Prepara l'audio durante il gesto reale: importante per Safari/iOS.
+  unlockAudio();
+  preloadSfxFiles();
   btn.disabled=true;
   btn.setAttribute("aria-busy","true");
   btn.textContent="Attendi…";
@@ -806,7 +838,8 @@ $("#awardForm").addEventListener("submit",async e=>{
     const ok=await award(pts,$("#reason").value);
     if(ok){
       setAwardProgress("success");
-      await new Promise(r=>setTimeout(r,650));
+      await awardSuccessDing();
+      await new Promise(r=>setTimeout(r,750));
       awardDialog.close()
     }
   }finally{
