@@ -1,4 +1,4 @@
-const CACHE_NAME = "gioco-delle-case-v7-3-ding-conferma-20260820";
+const CACHE_NAME = "gioco-delle-case-v7-4-area-riservata-20260820";
 const APP_SHELL = [
   "./",
   "./index.html",
