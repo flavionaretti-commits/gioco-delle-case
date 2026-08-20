@@ -493,7 +493,41 @@ function setSyncStatus(status,label){const b=$("#syncBtn");b.dataset.status=stat
 function openExternalLink(url){try{const w=window.open(url,"_blank","noopener,noreferrer");if(!w)window.location.href=url}catch{window.location.href=url}}
 function jsonpState(){return new Promise((resolve,reject)=>{if(!isShared())return reject(new Error("API non configurata"));const cb=`__gdc_${Date.now()}_${Math.random().toString(36).slice(2)}`,script=document.createElement("script"),timer=setTimeout(()=>finish(new Error("timeout")),9000);function finish(err,data){clearTimeout(timer);delete window[cb];script.remove();err?reject(err):resolve(data)}window[cb]=data=>finish(null,data);const qs=new URLSearchParams({op:"state",prefix:cb,_:String(Date.now())});script.src=`${API_URL}${API_URL.includes("?")?"&":"?"}${qs}`;script.onerror=()=>finish(new Error("network"));document.head.appendChild(script)})}
 async function syncNow(silent=false){if(!isShared()){setSyncStatus("local","Solo locale");return false}if(syncBusy)return false;syncBusy=true;if(!silent)setSyncStatus("syncing","Sincronizzo…");try{const data=await jsonpState();if(!data?.ok||!data.state)throw new Error(data?.error||"Risposta non valida");state=normalizeState(data.state);save();render();setSyncStatus("online","Sincronizzato");return true}catch(e){setSyncStatus("error","Connessione non riuscita");if(!silent)showToast("Non riesco a leggere il punteggio condiviso.");return false}finally{syncBusy=false}}
-async function postShared(action,payload={},pinOverride=null){if(!isShared())throw new Error("API non configurata");const body=new URLSearchParams({action,pin:pinOverride??prefs.pin??"",teacher:prefs.teacher||"",clientId:ensureClientId(),...payload});await fetch(API_URL,{method:"POST",mode:"no-cors",cache:"no-store",body})}
+function postShared(action,payload={},pinOverride=null){
+  if(!isShared())return Promise.reject(new Error("API non configurata"));
+  const params={action,pin:pinOverride??prefs.pin??"",teacher:prefs.teacher||"",clientId:ensureClientId(),...payload};
+  return new Promise((resolve,reject)=>{
+    try{
+      const token=`gdcpost_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const frame=document.createElement("iframe");
+      frame.name=token;
+      frame.setAttribute("aria-hidden","true");
+      frame.tabIndex=-1;
+      frame.style.cssText="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;top:-9999px";
+      const form=document.createElement("form");
+      form.method="POST";
+      form.action=API_URL;
+      form.target=token;
+      form.acceptCharset="UTF-8";
+      form.style.display="none";
+      Object.entries(params).forEach(([name,value])=>{
+        const input=document.createElement("input");
+        input.type="hidden";
+        input.name=name;
+        input.value=String(value??"");
+        form.appendChild(input);
+      });
+      document.body.appendChild(frame);
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+      // Il risultato del POST cross-origin non va letto: la conferma vera
+      // arriva subito dopo tramite il normale polling JSONP dello stato.
+      setTimeout(resolve,180);
+      setTimeout(()=>frame.remove(),12000);
+    }catch(err){reject(err)}
+  })
+}
 async function waitForHistoryId(id,shouldBeUndone=false){for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,i?750:450));await syncNow(true);const item=state.history.find(x=>x.id===id);if(item&&(!shouldBeUndone||item.undone))return true}return false}
 function defaultSeasonName(){const d=new Date(),y=d.getFullYear(),start=d.getMonth()>=6?y:y-1;return `Anno scolastico ${start}/${String(start+1).slice(-2)}`}
 function openNewSeason(){if(!isShared()){showToast("La nuova stagione è disponibile solo con la sincronizzazione condivisa attiva.");return}if(!prefs.teacher){infoDialog.close();openProfile();showToast("Imposta prima il profilo docente.");return}$("#newSeasonName").value=defaultSeasonName();$("#newSeasonPin").value="";pendingSeasonReset=null;infoDialog.close();newSeasonDialog.showModal();clickSound()}
@@ -510,7 +544,7 @@ async function award(points,reason){
   const celebrate=()=>{const changed=leaderSignature()!==leadersBefore&&leaders().length>0;changed?playSfx("leader"):playSfx("points")};
   if(isShared()){
     if(!prefs.pin){showToast("Inserisci il PIN nel profilo docente.");openProfile();return false}
-    setSyncStatus("syncing","Invio…");
+    setSyncStatus("syncing","Invio punti…");
     try{
       await postShared("award",{id,house:selectedHouse,points:String(points),reason:(reason||"").trim()});
       const ok=await waitForHistoryId(id,false);
@@ -570,7 +604,22 @@ document.addEventListener("touchstart",primeAudioFromGesture,{capture:true,passi
 /* Ding leggero per tutti i comandi tappabili; clickSound evita automaticamente i doppi suoni. */
 document.addEventListener("click",e=>{const el=e.target.closest?.("button,.tool-card,.home-house-btn,.student-row,.class-tab,#housePowerTrait,.projection .flask-card");if(!el||el.disabled||!prefs.sound)return;const skipIds=new Set(["projectBtn","projectionClose","houseBackBtn","houseCloseBtn","confirmAward","undoConfirmBtn","saveGuidesBtn","eduUnlockConfirm","saveEduMovementBtn","newSeasonContinueBtn","newSeasonConfirmBtn"]);if(skipIds.has(el.id)||e.target.closest(".home-house-btn,.projection .flask-card,#housePowerTrait"))return;clickSound()},true);
 $("#awardBtn").addEventListener("click",()=>openAward("A"));document.querySelectorAll(".point-presets button").forEach(b=>b.addEventListener("click",()=>{selectedPoints=Number(b.dataset.points);$("#customPoints").value="";document.querySelectorAll(".point-presets button").forEach(x=>x.classList.toggle("selected",x===b));clickSound()}));$("#customPoints").addEventListener("input",()=>{selectedPoints=null;document.querySelectorAll(".point-presets button").forEach(b=>b.classList.remove("selected"))});document.querySelectorAll(".quick-reasons button").forEach(b=>b.addEventListener("click",()=>{$("#reason").value=b.textContent;clickSound()}));
-$("#awardForm").addEventListener("submit",async e=>{if(e.submitter?.value==="cancel")return;e.preventDefault();const pts=selectedPoints??$("#customPoints").value;$("#confirmAward").disabled=true;try{if(await award(pts,$("#reason").value))awardDialog.close()}finally{$("#confirmAward").disabled=false}});
+$("#awardForm").addEventListener("submit",async e=>{
+  if(e.submitter?.value==="cancel")return;
+  e.preventDefault();
+  const pts=selectedPoints??$("#customPoints").value;
+  const btn=$("#confirmAward"),oldText=btn.textContent;
+  btn.disabled=true;
+  btn.setAttribute("aria-busy","true");
+  btn.textContent=isShared()?"Invio…":"Assegno…";
+  try{
+    if(await award(pts,$("#reason").value))awardDialog.close()
+  }finally{
+    btn.disabled=false;
+    btn.removeAttribute("aria-busy");
+    btn.textContent=oldText;
+  }
+});
 $("#profileBtn").addEventListener("click",openProfile);$("#syncBtn").addEventListener("click",()=>isShared()?syncNow(false):openProfile());$("#changeTeacherLink").addEventListener("click",e=>{e.preventDefault();awardDialog.close();openProfile()});$("#profileForm").addEventListener("submit",e=>{if(e.submitter?.value==="cancel")return;e.preventDefault();const name=$("#teacherName").value.trim();if(!name){showToast("Inserisci il nome del docente.");return}prefs.teacher=name;prefs.pin=$("#teacherPin").value.trim();savePrefs();applyPrefs();render();profileDialog.close();showToast("Profilo docente salvato.");playSfx("confirm");if(isShared())syncNow(true)});
 $("#historyBtn").addEventListener("click",()=>{historyDialog.showModal();clickSound()});$("#closeHistoryBtn").addEventListener("click",()=>historyDialog.close());fullHistory.addEventListener("click",e=>{const b=e.target.closest("[data-undo-index]");if(b)undoAward(b.dataset.undoIndex)});$("#undoCancelBtn").addEventListener("click",()=>{pendingUndoIndex=null;undoDialog.close?.();undoDialog.removeAttribute("open")});$("#undoCloseBtn").addEventListener("click",()=>{pendingUndoIndex=null;undoDialog.close?.();undoDialog.removeAttribute("open")});$("#undoConfirmBtn").addEventListener("click",async()=>{const index=pendingUndoIndex;pendingUndoIndex=null;undoDialog.close?.();undoDialog.removeAttribute("open");if(index!==null)await performUndoAward(index)});$("#ruleBtn").addEventListener("click",()=>{clickSound();openExternalLink(RULEBOOK_URL)});$("#infoBtn").addEventListener("click",()=>{infoDialog.showModal();clickSound()});$("#closeInfoBtn").addEventListener("click",()=>infoDialog.close());$("#newSeasonBtn").addEventListener("click",openNewSeason);$("#newSeasonForm").addEventListener("submit",e=>{if(e.submitter?.value==="cancel")return;e.preventDefault();prepareNewSeason()});$("#newSeasonFinalCloseBtn").addEventListener("click",()=>{pendingSeasonReset=null;newSeasonFinalDialog.close()});$("#newSeasonBackBtn").addEventListener("click",()=>{newSeasonFinalDialog.close();newSeasonDialog.showModal()});$("#newSeasonConfirmBtn").addEventListener("click",performNewSeason);$("#themeBtn").addEventListener("click",()=>{prefs.theme=prefs.theme==="dark"?"light":"dark";savePrefs();applyPrefs();clickSound()});$("#soundBtn").addEventListener("click",()=>{prefs.sound=!prefs.sound;savePrefs();
 
