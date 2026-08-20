@@ -1,4 +1,4 @@
-const CACHE_NAME = "gioco-delle-case-v7-1-pin-feedback-20260820";
+const CACHE_NAME = "gioco-delle-case-v7-2-assegnazione-attesa-20260820";
 const APP_SHELL = [
   "./",
   "./index.html",
