@@ -238,7 +238,7 @@ main{max-width:1500px;margin:0 auto;padding:20px 28px 40px}
 <dialog id="profileDialog" class="modal"><form method="dialog" id="profileForm"><div class="modal-head"><div><p class="eyebrow">PROFILO</p><h3>Profilo docente</h3></div><button class="close-btn" value="cancel" aria-label="Chiudi">×</button></div><div class="profile-grid"><div class="field"><label for="teacherName">Nome visualizzato nello storico</label><input id="teacherName" maxlength="80" autocomplete="name" placeholder="Es. prof. Flavio Naretti"></div><div class="field" id="pinField"><label for="teacherPin">PIN del Gioco delle Case</label><input id="teacherPin" type="password" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="PIN condiviso tra i docenti"></div></div><p class="profile-note">Il nome e il PIN vengono memorizzati solo su questo dispositivo. Il PIN protegge la modifica delle Guide e l’area del Saldo educativo personale e non viene scritto nello storico.</p><div class="sync-explainer" id="profileSyncText"><strong>Modalità locale.</strong> Il collegamento al foglio condiviso verrà attivato inserendo nell'app l'URL del Google Apps Script.</div><div class="modal-actions"><button class="btn secondary" value="cancel">Annulla</button><button class="btn primary" id="saveProfileBtn" type="submit" value="default">Salva profilo</button></div></form></dialog>
 <dialog id="undoDialog" class="modal undo-confirm"><div class="modal-head"><div><p class="eyebrow">CORREZIONE</p><h3>Annullare questa assegnazione?</h3></div><button class="close-btn" id="undoCloseBtn" type="button" aria-label="Chiudi">×</button></div><p id="undoMessage"></p><p class="warning">L’annullamento serve solo a correggere un errore e non crea una penalità.</p><div class="modal-actions"><button class="btn secondary" id="undoCancelBtn" type="button">No, mantieni</button><button class="btn primary" id="undoConfirmBtn" type="button">Sì, annulla</button></div></dialog>
 <dialog id="newSeasonDialog" class="modal undo-confirm"><form method="dialog" id="newSeasonForm"><div class="modal-head"><div><p class="eyebrow">AMMINISTRAZIONE</p><h3>Aprire una nuova stagione?</h3></div><button class="close-btn" value="cancel" aria-label="Chiudi">×</button></div><p>La classifica condivisa e lo storico visibile nell’app ripartiranno da zero. <strong>I dati precedenti non verranno cancellati</strong>: resteranno nel foglio, associati alla stagione appena chiusa.</p><div class="reset-note"><strong>Non vengono modificati</strong> Guide della Casa, nomi degli studenti o Saldi educativi personali. Questi dati restano separati.</div><div class="field"><label for="newSeasonName">Nome della nuova stagione</label><input id="newSeasonName" maxlength="100" autocomplete="off" placeholder="Es. Anno scolastico 2026/27"></div><div class="field"><label for="newSeasonPin">PIN amministratore</label><input id="newSeasonPin" type="password" maxlength="64" inputmode="numeric" autocomplete="off" placeholder="PIN amministratore"><p class="field-hint" style="margin:7px 2px 0;color:var(--muted);font-size:12px;line-height:1.4">È il PIN riservato al responsabile del gioco, diverso dal PIN docenti. Non viene salvato nell’app.</p></div><div class="modal-actions"><button class="btn secondary" value="cancel">Annulla</button><button class="btn primary" id="newSeasonContinueBtn" type="submit" value="default">Continua</button></div></form></dialog>
-<dialog id="newSeasonFinalDialog" class="modal undo-confirm"><div class="modal-head"><div><p class="eyebrow">ULTIMA CONFERMA</p><h3 class="reset-final-title">Azzero davvero i punteggi?</h3></div><button class="close-btn" id="newSeasonFinalCloseBtn" type="button" aria-label="Chiudi">×</button></div><div class="reset-summary" id="newSeasonSummary"></div><p class="warning">Questa operazione è visibile a tutti i dispositivi sincronizzati. Lo storico precedente resta comunque conservato nel Google Sheet.</p><div class="modal-actions"><button class="btn secondary" id="newSeasonBackBtn" type="button">Torna indietro</button><button class="btn primary" id="newSeasonConfirmBtn" type="button">Sì, archivia e riparti da 0</button></div></dialog>
+<dialog id="newSeasonFinalDialog" class="modal undo-confirm"><div class="modal-head"><div><p class="eyebrow">ULTIMA CONFERMA</p><h3 class="reset-final-title">Azzero davvero i punteggi?</h3></div><button class="close-btn" id="newSeasonFinalCloseBtn" type="button" aria-label="Chiudi">×</button></div><div class="reset-summary" id="newSeasonSummary"></div><p class="warning">Questa operazione è visibile a tutti i dispositivi sincronizzati. Lo storico precedente resta comunque conservato nel Google Sheet.</p><div id="newSeasonFeedback" role="status" aria-live="polite" style="display:none;margin:14px 0 2px;padding:12px 14px;border-radius:14px;font-weight:800;line-height:1.35"></div><div class="modal-actions"><button class="btn secondary" id="newSeasonBackBtn" type="button">Torna indietro</button><button class="btn primary" id="newSeasonConfirmBtn" type="button">Sì, archivia e riparti da 0</button></div></dialog>
 <dialog id="eduUnlockDialog" class="modal">
   <form method="dialog" id="eduUnlockForm">
     <div class="modal-head"><div><p class="eyebrow">AREA RISERVATA</p><h3>Sblocca il saldo educativo</h3></div><button class="close-btn" value="cancel" aria-label="Chiudi">×</button></div>
@@ -492,6 +492,46 @@ function recomputeLocalScores(){state.scores=Object.fromEntries(HOUSES.map(h=>[h
 function setSyncStatus(status,label){const b=$("#syncBtn");b.dataset.status=status;$("#syncLabel").textContent=label;b.title=label}
 function openExternalLink(url){try{const w=window.open(url,"_blank","noopener,noreferrer");if(!w)window.location.href=url}catch{window.location.href=url}}
 function jsonpState(){return new Promise((resolve,reject)=>{if(!isShared())return reject(new Error("API non configurata"));const cb=`__gdc_${Date.now()}_${Math.random().toString(36).slice(2)}`,script=document.createElement("script"),timer=setTimeout(()=>finish(new Error("timeout")),9000);function finish(err,data){clearTimeout(timer);delete window[cb];script.remove();err?reject(err):resolve(data)}window[cb]=data=>finish(null,data);const qs=new URLSearchParams({op:"state",prefix:cb,_:String(Date.now())});script.src=`${API_URL}${API_URL.includes("?")?"&":"?"}${qs}`;script.onerror=()=>finish(new Error("network"));document.head.appendChild(script)})}
+function jsonpAdminResult(requestId){return new Promise((resolve,reject)=>{
+  if(!isShared())return reject(new Error("API non configurata"));
+  const cb=`__gdc_admin_${Date.now()}_${Math.random().toString(36).slice(2)}`,script=document.createElement("script"),
+        timer=setTimeout(()=>finish(new Error("timeout")),7000);
+  function finish(err,data){clearTimeout(timer);delete window[cb];script.remove();err?reject(err):resolve(data)}
+  window[cb]=data=>finish(null,data);
+  const qs=new URLSearchParams({op:"adminResult",requestId,prefix:cb,_:String(Date.now())});
+  script.src=`${API_URL}${API_URL.includes("?")?"&":"?"}${qs}`;
+  script.onerror=()=>finish(new Error("network"));
+  document.head.appendChild(script)
+})}
+async function waitForAdminResult(requestId){
+  for(let i=0;i<10;i++){
+    await new Promise(r=>setTimeout(r,i?420:260));
+    try{
+      const data=await jsonpAdminResult(requestId);
+      if(data?.ok&&!data.pending&&data.result)return data.result
+    }catch{}
+  }
+  return null
+}
+function setNewSeasonFeedback(kind,message){
+  const box=$("#newSeasonFeedback");if(!box)return;
+  if(!message){box.style.display="none";box.textContent="";return}
+  box.style.display="block";box.textContent=message;
+  if(kind==="ok"){
+    box.style.background="rgba(76,190,120,.14)";
+    box.style.border="1px solid rgba(76,190,120,.42)";
+    box.style.color="var(--text)"
+  }else if(kind==="error"){
+    box.style.background="rgba(235,79,93,.13)";
+    box.style.border="1px solid rgba(235,79,93,.42)";
+    box.style.color="var(--text)"
+  }else{
+    box.style.background="rgba(231,199,120,.10)";
+    box.style.border="1px solid rgba(231,199,120,.30)";
+    box.style.color="var(--accent-strong)"
+  }
+}
+
 async function syncNow(silent=false){if(!isShared()){setSyncStatus("local","Solo locale");return false}if(syncBusy)return false;syncBusy=true;if(!silent)setSyncStatus("syncing","Sincronizzo…");try{const data=await jsonpState();if(!data?.ok||!data.state)throw new Error(data?.error||"Risposta non valida");state=normalizeState(data.state);save();render();setSyncStatus("online","Sincronizzato");return true}catch(e){setSyncStatus("error","Connessione non riuscita");if(!silent)showToast("Non riesco a leggere il punteggio condiviso.");return false}finally{syncBusy=false}}
 function postShared(action,payload={},pinOverride=null){
   if(!isShared())return Promise.reject(new Error("API non configurata"));
@@ -531,9 +571,58 @@ function postShared(action,payload={},pinOverride=null){
 async function waitForHistoryId(id,shouldBeUndone=false){for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,i?750:450));await syncNow(true);const item=state.history.find(x=>x.id===id);if(item&&(!shouldBeUndone||item.undone))return true}return false}
 function defaultSeasonName(){const d=new Date(),y=d.getFullYear(),start=d.getMonth()>=6?y:y-1;return `Anno scolastico ${start}/${String(start+1).slice(-2)}`}
 function openNewSeason(){if(!isShared()){showToast("La nuova stagione è disponibile solo con la sincronizzazione condivisa attiva.");return}if(!prefs.teacher){infoDialog.close();openProfile();showToast("Imposta prima il profilo docente.");return}$("#newSeasonName").value=defaultSeasonName();$("#newSeasonPin").value="";pendingSeasonReset=null;infoDialog.close();newSeasonDialog.showModal();clickSound()}
-function prepareNewSeason(){const label=$("#newSeasonName").value.trim(),pin=$("#newSeasonPin").value.trim();if(!label){showToast("Dai un nome alla nuova stagione.");return false}if(!pin){showToast("Inserisci il PIN amministratore per continuare.");$("#newSeasonPin").focus();return false}const resetId=crypto.randomUUID?`stagione-${crypto.randomUUID()}`:`stagione-${Date.now()}-${Math.random().toString(36).slice(2)}`;pendingSeasonReset={label,pin,resetId,oldSeasonId:state.seasonId};const total=HOUSES.reduce((sum,h)=>sum+Number(state.scores[h.id]||0),0);$("#newSeasonSummary").innerHTML=`Stagione corrente: <strong>${escapeHtml(state.seasonLabel||"attuale")}</strong><br>Assegnazioni nello storico visibile: <strong>${state.history.length}</strong><br>Punti complessivi attuali: <strong>${formatScore(total)}</strong><br><br>Nuova stagione: <strong>${escapeHtml(label)}</strong> · tutte le Case ripartiranno da <strong>0</strong>.`;newSeasonDialog.close();newSeasonFinalDialog.showModal();return true}
+function prepareNewSeason(){setNewSeasonFeedback("","");const label=$("#newSeasonName").value.trim(),pin=$("#newSeasonPin").value.trim();if(!label){showToast("Dai un nome alla nuova stagione.");return false}if(!pin){showToast("Inserisci il PIN amministratore per continuare.");$("#newSeasonPin").focus();return false}const resetId=crypto.randomUUID?`stagione-${crypto.randomUUID()}`:`stagione-${Date.now()}-${Math.random().toString(36).slice(2)}`;pendingSeasonReset={label,pin,resetId,oldSeasonId:state.seasonId};const total=HOUSES.reduce((sum,h)=>sum+Number(state.scores[h.id]||0),0);$("#newSeasonSummary").innerHTML=`Stagione corrente: <strong>${escapeHtml(state.seasonLabel||"attuale")}</strong><br>Assegnazioni nello storico visibile: <strong>${state.history.length}</strong><br>Punti complessivi attuali: <strong>${formatScore(total)}</strong><br><br>Nuova stagione: <strong>${escapeHtml(label)}</strong> · tutte le Case ripartiranno da <strong>0</strong>.`;newSeasonDialog.close();newSeasonFinalDialog.showModal();return true}
 async function waitForSeasonChange(resetId,oldSeasonId){for(let i=0;i<7;i++){await new Promise(r=>setTimeout(r,i?700:450));await syncNow(true);if(state.seasonId===resetId||(oldSeasonId&&state.seasonId&&state.seasonId!==oldSeasonId))return true}return false}
-async function performNewSeason(){const req=pendingSeasonReset;if(!req)return;const btn=$("#newSeasonConfirmBtn");btn.disabled=true;setSyncStatus("syncing","Nuova stagione…");try{await postShared("newSeason",{resetId:req.resetId,label:req.label,confirm:"AZZERA"},req.pin);const ok=await waitForSeasonChange(req.resetId,req.oldSeasonId);if(!ok){setSyncStatus("error","Non confermato");showToast("Operazione non confermata: controlla il PIN amministratore o la connessione.");return}newSeasonFinalDialog.close();pendingSeasonReset=null;playSfx("confirm");showToast(`Nuova stagione “${req.label}” avviata: tutte le Case ripartono da 0.`)}catch{setSyncStatus("error","Errore invio");showToast("Non riesco ad avviare la nuova stagione.")}finally{btn.disabled=false}}
+async function performNewSeason(){
+  const req=pendingSeasonReset;if(!req)return;
+  const btn=$("#newSeasonConfirmBtn"),originalText=btn.textContent;
+  const requestId=crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  btn.disabled=true;
+  btn.textContent="Verifico PIN…";
+  setNewSeasonFeedback("wait","Verifica del PIN amministratore in corso…");
+  setSyncStatus("syncing","Verifico PIN…");
+
+  try{
+    await postShared("newSeason",{resetId:req.resetId,label:req.label,confirm:"AZZERA",requestId},req.pin);
+    const result=await waitForAdminResult(requestId);
+
+    if(!result){
+      setSyncStatus("error","Esito non ricevuto");
+      setNewSeasonFeedback("error","Non riesco a verificare l’esito. Controlla la connessione e riprova.");
+      return
+    }
+
+    if(!result.ok){
+      setSyncStatus("error","PIN non valido");
+      if(result.code==="PIN_INVALID"){
+        setNewSeasonFeedback("error","✕ PIN amministratore errato. I punteggi non sono stati azzerati.")
+      }else if(result.code==="PIN_NOT_CONFIGURED"){
+        setNewSeasonFeedback("error","✕ PIN amministratore non configurato nel backend.")
+      }else{
+        setNewSeasonFeedback("error","✕ Operazione non riuscita. I punteggi non sono stati azzerati.")
+      }
+      return
+    }
+
+    setNewSeasonFeedback("ok","✓ PIN amministratore corretto. Nuova stagione avviata.");
+    btn.textContent="Aggiorno la classifica…";
+    await waitForSeasonChange(req.resetId,req.oldSeasonId);
+    await syncNow(true);
+    setSyncStatus("online","Sincronizzato");
+    playSfx("confirm");
+    showToast(`✓ PIN corretto. Nuova stagione “${req.label}” avviata.`);
+    pendingSeasonReset=null;
+    await new Promise(r=>setTimeout(r,650));
+    newSeasonFinalDialog.close()
+  }catch(err){
+    setSyncStatus("error","Errore invio");
+    setNewSeasonFeedback("error","Non riesco a contattare il server. Riprova tra qualche secondo.")
+  }finally{
+    btn.disabled=false;
+    btn.textContent=originalText
+  }
+}
 async function award(points,reason){
   points=Number(points);
   if(!Number.isFinite(points)||points<=0){showToast("Inserisci un numero di punti maggiore di zero.");return false}
@@ -687,7 +776,7 @@ $("#awardForm").addEventListener("submit",async e=>{
   }
 });
 $("#profileBtn").addEventListener("click",openProfile);$("#syncBtn").addEventListener("click",()=>isShared()?syncNow(false):openProfile());$("#changeTeacherLink").addEventListener("click",e=>{e.preventDefault();awardDialog.close();openProfile()});$("#profileForm").addEventListener("submit",e=>{if(e.submitter?.value==="cancel")return;e.preventDefault();const name=$("#teacherName").value.trim();if(!name){showToast("Inserisci il nome del docente.");return}prefs.teacher=name;prefs.pin=$("#teacherPin").value.trim();savePrefs();applyPrefs();render();profileDialog.close();showToast("Profilo docente salvato.");playSfx("confirm");if(isShared())syncNow(true)});
-$("#historyBtn").addEventListener("click",()=>{historyDialog.showModal();clickSound()});$("#closeHistoryBtn").addEventListener("click",()=>historyDialog.close());fullHistory.addEventListener("click",e=>{const b=e.target.closest("[data-undo-index]");if(b)undoAward(b.dataset.undoIndex)});$("#undoCancelBtn").addEventListener("click",()=>{pendingUndoIndex=null;undoDialog.close?.();undoDialog.removeAttribute("open")});$("#undoCloseBtn").addEventListener("click",()=>{pendingUndoIndex=null;undoDialog.close?.();undoDialog.removeAttribute("open")});$("#undoConfirmBtn").addEventListener("click",async()=>{const index=pendingUndoIndex;pendingUndoIndex=null;undoDialog.close?.();undoDialog.removeAttribute("open");if(index!==null)await performUndoAward(index)});$("#ruleBtn").addEventListener("click",()=>{clickSound();openExternalLink(RULEBOOK_URL)});$("#infoBtn").addEventListener("click",()=>{infoDialog.showModal();clickSound()});$("#closeInfoBtn").addEventListener("click",()=>infoDialog.close());$("#newSeasonBtn").addEventListener("click",openNewSeason);$("#newSeasonForm").addEventListener("submit",e=>{if(e.submitter?.value==="cancel")return;e.preventDefault();prepareNewSeason()});$("#newSeasonFinalCloseBtn").addEventListener("click",()=>{pendingSeasonReset=null;newSeasonFinalDialog.close()});$("#newSeasonBackBtn").addEventListener("click",()=>{newSeasonFinalDialog.close();newSeasonDialog.showModal()});$("#newSeasonConfirmBtn").addEventListener("click",performNewSeason);$("#themeBtn").addEventListener("click",()=>{prefs.theme=prefs.theme==="dark"?"light":"dark";savePrefs();applyPrefs();clickSound()});$("#soundBtn").addEventListener("click",async()=>{prefs.sound=!prefs.sound;savePrefs();
+$("#historyBtn").addEventListener("click",()=>{historyDialog.showModal();clickSound()});$("#closeHistoryBtn").addEventListener("click",()=>historyDialog.close());fullHistory.addEventListener("click",e=>{const b=e.target.closest("[data-undo-index]");if(b)undoAward(b.dataset.undoIndex)});$("#undoCancelBtn").addEventListener("click",()=>{pendingUndoIndex=null;undoDialog.close?.();undoDialog.removeAttribute("open")});$("#undoCloseBtn").addEventListener("click",()=>{pendingUndoIndex=null;undoDialog.close?.();undoDialog.removeAttribute("open")});$("#undoConfirmBtn").addEventListener("click",async()=>{const index=pendingUndoIndex;pendingUndoIndex=null;undoDialog.close?.();undoDialog.removeAttribute("open");if(index!==null)await performUndoAward(index)});$("#ruleBtn").addEventListener("click",()=>{clickSound();openExternalLink(RULEBOOK_URL)});$("#infoBtn").addEventListener("click",()=>{infoDialog.showModal();clickSound()});$("#closeInfoBtn").addEventListener("click",()=>infoDialog.close());$("#newSeasonBtn").addEventListener("click",openNewSeason);$("#newSeasonForm").addEventListener("submit",e=>{if(e.submitter?.value==="cancel")return;e.preventDefault();prepareNewSeason()});$("#newSeasonFinalCloseBtn").addEventListener("click",()=>{pendingSeasonReset=null;newSeasonFinalDialog.close()});$("#newSeasonBackBtn").addEventListener("click",()=>{setNewSeasonFeedback("","");newSeasonFinalDialog.close();newSeasonDialog.showModal()});$("#newSeasonConfirmBtn").addEventListener("click",performNewSeason);$("#themeBtn").addEventListener("click",()=>{prefs.theme=prefs.theme==="dark"?"light":"dark";savePrefs();applyPrefs();clickSound()});$("#soundBtn").addEventListener("click",async()=>{prefs.sound=!prefs.sound;savePrefs();
 applyPrefs();if(prefs.sound){await unlockAudio(true);clickSound()}});$("#exportBtn").addEventListener("click",()=>{downloadJSON();clickSound()});$("#importInput").addEventListener("change",e=>{const f=e.target.files?.[0];if(f)importJSON(f);e.target.value=""});$("#projectBtn").addEventListener("click",()=>{$("#projection").classList.add("active");$("#projection").setAttribute("aria-hidden","false");playProjectionMagic();document.documentElement.requestFullscreen?.().catch(()=>{})});$("#projectionClose").addEventListener("click",()=>{$("#projection").classList.remove("active");$("#projection").setAttribute("aria-hidden","true");playSfx("transition");if(document.fullscreenElement)document.exitFullscreen?.().catch(()=>{})});document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#projection").classList.contains("active")){$("#projection").classList.remove("active");$("#projection").setAttribute("aria-hidden","true");playSfx("transition")}});document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState==="visible"){
     if(prefs.sound)unlockAudio();
