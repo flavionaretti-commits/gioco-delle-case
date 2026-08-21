@@ -1,4 +1,4 @@
-const CACHE_NAME = "gioco-delle-case-v7-5a-aura-fix-20260821";
+const CACHE_NAME = "gioco-delle-case-v7-5b-poteri-titolo-giorno-20260821";
 const APP_SHELL = [
   "./",
   "./index.html",
